@@ -4,14 +4,16 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
+import matplotlib.pyplot as plt
 
-from tensorflow.keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras.utils import image_dataset_from_directory
 
 def main():
     train_dataset, validation_dataset = load_dataset(32, (120, 120))
+    show_data(train_dataset)
 
 
-def load_dataset(batch_size, image_size, validation_split=0.2, seed=51):
+def load_dataset(batch_size, image_size, validation_split=0.2, seed=23):
     directory = "recaptcha-dataset/Large/"
     train_dataset = image_dataset_from_directory(directory,
                                                  shuffle=True,
@@ -28,6 +30,19 @@ def load_dataset(batch_size, image_size, validation_split=0.2, seed=51):
                                                       subset='validation',
                                                       seed=seed)
     return train_dataset, validation_dataset
+
+
+def show_data(dataset, rows=3, cols=3):
+    class_names = dataset.class_names
+
+    plt.figure(figsize=(cols * 3, rows * 3))
+    for images, labels in dataset.take(1):
+        for i in range(rows * cols):
+            ax = plt.subplot(cols, rows, i + 1)
+            plt.imshow(images[i].numpy().astype("uint8"))
+            plt.title(class_names[labels[i]])
+            plt.axis("off")
+    plt.show()
 
 
 # Press the green button in the gutter to run the script.
