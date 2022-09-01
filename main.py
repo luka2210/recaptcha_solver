@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 def main():
-    batch_size = 32
+    batch_size = 64
     image_size = (120, 120)
     train_dataset, validation_dataset = load_dataset("recaptcha-dataset/Large/", batch_size, image_size)
 
@@ -15,12 +15,16 @@ def main():
 
     input_shape = image_size + (3,)
     recaptcha_model = build_recaptcha_model(input_shape)
-    recaptcha_model.summary()
 
-    learning_rate = 0.001
+    learning_rate = 0.0001
     recaptcha_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
                             loss=tf.keras.losses.SparseCategoricalCrossentropy(),
                             metrics=['accuracy'])
+    recaptcha_model.summary()
+
+    epochs = 30
+    history = recaptcha_model.fit(train_dataset, validation_data=validation_dataset, epochs=epochs)
+    show_accuracy(history)
 
 
 def build_recaptcha_model(input_shape):
@@ -28,14 +32,54 @@ def build_recaptcha_model(input_shape):
                                                                           include_top=False,
                                                                           weights='imagenet',
                                                                           classes=12)
+    efficient_net.trainable = True
+    fine_tune_at = len(efficient_net.layers) - 7
+    for layer in efficient_net.layers[:fine_tune_at]:
+        layer.trainable = False
+
     model = tf.keras.models.Sequential([
-        # tf.keras.layers.InputLayer(input_shape=input_shape),
+        data_augmentation(input_shape),
         efficient_net,
         tf.keras.layers.GlobalAveragePooling2D(),
         tf.keras.layers.Dropout(rate=0.2),
         tf.keras.layers.Dense(12, activation='softmax'),
     ])
     return model
+
+
+def data_augmentation(input_shape):
+    augmentation_model = tf.keras.models.Sequential([
+        tf.keras.layers.RandomFlip(mode='horizontal', input_shape=input_shape),
+        tf.keras.layers.RandomRotation(0.15)
+    ])
+    return augmentation_model
+
+
+def show_accuracy(history):
+    acc = [0.] + history.history['accuracy']
+    val_acc = [0.] + history.history['val_accuracy']
+
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+
+    plt.figure(figsize=(8, 8))
+    plt.subplot(2, 1, 1)
+    plt.plot(acc, label='Training Accuracy')
+    plt.plot(val_acc, label='Validation Accuracy')
+    plt.legend(loc='lower right')
+    plt.ylabel('Accuracy')
+    plt.ylim([min(plt.ylim()), 1])
+    plt.title('Training and Validation Accuracy')
+
+    plt.subplot(2, 1, 2)
+    plt.plot(loss, label='Training Loss')
+    plt.plot(val_loss, label='Validation Loss')
+    plt.legend(loc='upper right')
+    plt.ylabel('Cross Entropy')
+    plt.ylim([0, 1.0])
+    plt.title('Training and Validation Loss')
+    plt.xlabel('epoch')
+    plt.show()
 
 
 def load_dataset(directory, batch_size, image_size, validation_split=0.2, seed=23):
