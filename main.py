@@ -3,32 +3,56 @@
 
 import numpy as np
 import tensorflow as tf
-import tensorflow.keras as keras
 import matplotlib.pyplot as plt
 
-from tensorflow.keras.utils import image_dataset_from_directory
 
 def main():
-    train_dataset, validation_dataset = load_dataset(32, (120, 120))
+    batch_size = 32
+    image_size = (120, 120)
+    train_dataset, validation_dataset = load_dataset("recaptcha-dataset/Large/", batch_size, image_size)
+
     show_data(train_dataset)
 
+    input_shape = image_size + (3,)
+    recaptcha_model = build_recaptcha_model(input_shape)
+    recaptcha_model.summary()
 
-def load_dataset(batch_size, image_size, validation_split=0.2, seed=23):
-    directory = "recaptcha-dataset/Large/"
-    train_dataset = image_dataset_from_directory(directory,
-                                                 shuffle=True,
-                                                 batch_size=batch_size,
-                                                 image_size=image_size,
-                                                 validation_split=validation_split,
-                                                 subset='training',
-                                                 seed=seed)
-    validation_dataset = image_dataset_from_directory(directory,
-                                                      shuffle=True,
-                                                      batch_size=batch_size,
-                                                      image_size=image_size,
-                                                      validation_split=validation_split,
-                                                      subset='validation',
-                                                      seed=seed)
+    learning_rate = 0.001
+    recaptcha_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                            loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+                            metrics=['accuracy'])
+
+
+def build_recaptcha_model(input_shape):
+    efficient_net = tf.keras.applications.efficientnet_v2.EfficientNetV2S(input_shape=input_shape,
+                                                                          include_top=False,
+                                                                          weights='imagenet',
+                                                                          classes=12)
+    model = tf.keras.models.Sequential([
+        # tf.keras.layers.InputLayer(input_shape=input_shape),
+        efficient_net,
+        tf.keras.layers.GlobalAveragePooling2D(),
+        tf.keras.layers.Dropout(rate=0.2),
+        tf.keras.layers.Dense(12, activation='softmax'),
+    ])
+    return model
+
+
+def load_dataset(directory, batch_size, image_size, validation_split=0.2, seed=23):
+    train_dataset = tf.keras.utils.image_dataset_from_directory(directory,
+                                                                shuffle=True,
+                                                                batch_size=batch_size,
+                                                                image_size=image_size,
+                                                                validation_split=validation_split,
+                                                                subset='training',
+                                                                seed=seed)
+    validation_dataset = tf.keras.utils.image_dataset_from_directory(directory,
+                                                                     shuffle=True,
+                                                                     batch_size=batch_size,
+                                                                     image_size=image_size,
+                                                                     validation_split=validation_split,
+                                                                     subset='validation',
+                                                                     seed=seed)
     return train_dataset, validation_dataset
 
 
