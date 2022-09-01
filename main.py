@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 def main():
-    batch_size = 64
+    batch_size = 128
     image_size = (120, 120)
     train_dataset, validation_dataset = load_dataset("recaptcha-dataset/Large/", batch_size, image_size)
 
@@ -22,7 +22,7 @@ def main():
                             metrics=['accuracy'])
     recaptcha_model.summary()
 
-    epochs = 30
+    epochs = 20
     history = recaptcha_model.fit(train_dataset, validation_data=validation_dataset, epochs=epochs)
     show_accuracy(history)
 
@@ -33,16 +33,20 @@ def build_recaptcha_model(input_shape):
                                                                           weights='imagenet',
                                                                           classes=12)
     efficient_net.trainable = True
-    fine_tune_at = len(efficient_net.layers) - 7
+    fine_tune_at = len(efficient_net.layers) - 50
     for layer in efficient_net.layers[:fine_tune_at]:
         layer.trainable = False
 
     model = tf.keras.models.Sequential([
         data_augmentation(input_shape),
         efficient_net,
-        tf.keras.layers.GlobalAveragePooling2D(),
+        tf.keras.layers.GlobalMaxPool2D(),
         tf.keras.layers.Dropout(rate=0.2),
-        tf.keras.layers.Dense(12, activation='softmax'),
+        tf.keras.layers.Dense(320, activation='leaky_relu'),
+        tf.keras.layers.Dropout(rate=0.2),
+        tf.keras.layers.Dense(80, activation='leaky_relu'),
+        tf.keras.layers.Dropout(rate=0.2),
+        tf.keras.layers.Dense(9, activation='softmax'),
     ])
     return model
 
@@ -50,7 +54,9 @@ def build_recaptcha_model(input_shape):
 def data_augmentation(input_shape):
     augmentation_model = tf.keras.models.Sequential([
         tf.keras.layers.RandomFlip(mode='horizontal', input_shape=input_shape),
-        tf.keras.layers.RandomRotation(0.15)
+        tf.keras.layers.RandomRotation(0.15),
+        # tf.keras.layers.RandomBrightness(0.2),
+        # tf.keras.layers.RandomContrast(0.2)
     ])
     return augmentation_model
 
@@ -83,13 +89,13 @@ def show_accuracy(history):
 
 
 def load_dataset(directory, batch_size, image_size, validation_split=0.2, seed=23):
-    train_dataset = tf.keras.utils.image_dataset_from_directory(directory,
-                                                                shuffle=True,
-                                                                batch_size=batch_size,
-                                                                image_size=image_size,
-                                                                validation_split=validation_split,
-                                                                subset='training',
-                                                                seed=seed)
+    train_dataset1 = tf.keras.utils.image_dataset_from_directory(directory,
+                                                                 shuffle=True,
+                                                                 batch_size=batch_size,
+                                                                 image_size=image_size,
+                                                                 validation_split=validation_split,
+                                                                 subset='training',
+                                                                 seed=seed)
     validation_dataset = tf.keras.utils.image_dataset_from_directory(directory,
                                                                      shuffle=True,
                                                                      batch_size=batch_size,
@@ -97,7 +103,7 @@ def load_dataset(directory, batch_size, image_size, validation_split=0.2, seed=2
                                                                      validation_split=validation_split,
                                                                      subset='validation',
                                                                      seed=seed)
-    return train_dataset, validation_dataset
+    return train_dataset1, validation_dataset
 
 
 def show_data(dataset, rows=3, cols=3):
